@@ -24,6 +24,8 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+debug = 1
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -41,13 +43,23 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        if len(data) <= 0:
+            return 404
+        if data[9] == '4' and data[10] == '0' and data[11] == '4':
+            return 404
+        elif data[9] == '2' and data[10] == '0' and data[11] == '0':
+            return 200
+        # return None
 
     def get_headers(self,data):
-        return None
+        if len(data) > 0:
+            return data.split("\r\n\r\n",1)[0]
+        return data
 
     def get_body(self, data):
-        return None
+        if len(data) > 0:
+            return data.split("\r\n\r\n",1)[1]
+        return data
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -68,8 +80,40 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        parsed_url = urllib.parse.urlparse(url)
+        # if debug == 1:
+        #     print("URL: ",url)
+        #     print("Scheme: ", parsed_url.scheme)
+        #     print("Host: ", parsed_url.hostname)
+        #     print("Port: ", parsed_url.port)
+        #     print("Path: ", parsed_url.path, " ", type(parsed_url.path))
+        # request = b"Get " + parsed_url.path + " HTTP/1.1\r\nHost:" + parsed_url.hostname + "\r\n"
+        request = "GET " + parsed_url.path + " HTTP/1.1\r\nHost:" + parsed_url.hostname + "\r\n"
+        if debug == 1:
+            print(request)
+        request = bytearray(request, encoding='utf-8')
+        # request = urllib.parse.urlencode(request, encoding='utf-8')
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            if parsed_url.port is None:
+                hostip = socket.gethostbyname(parsed_url.hostname)
+                print(hostip)
+                sock.connect((hostip, 80))
+            else:
+                sock.connect((parsed_url.hostname, parsed_url.port))
+            sock.sendall(request)
+            sock.shutdown(socket.SHUT_WR)
+            if debug == 1:
+                print("Waiting for response")
+            result = self.recvall(sock)
+        # print(result)
+        # print(self.get_headers(result))
+        # print(self.get_body(result))
+        # print(type(result))
+        # print("Code: ", self.get_code(result))
+        # code = 500
+        code = self.get_code(result)
+        # body = ""
+        body = self.get_body(result)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
