@@ -114,30 +114,20 @@ class HTTPClient(object):
         code = 500
         body = ""
         parsed_url = urllib.parse.urlparse(url)
-        # if debug == 1:
-        #     print("URL: ", url)
-        #     print(parsed_url)
+
         if len(parsed_url.path) > 0:
             request = b"POST " + parsed_url.path.encode('utf-8') + b" HTTP/1.1\r\nHost:" + parsed_url.hostname.encode('utf-8') + b"\r\nContent-Type: application/x-www-form-urlencoded\r\n"
         else:
             request = b"POST / HTTP/1.1\r\nHost:" + parsed_url.hostname.encode('utf-8') + b"\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n"
-            
-        request_body = bytearray()
-        if args is not None or len(parsed_url.query) > 0:
-            for arg_i, (arg_key, arg_value) in enumerate(args.items()):
-                if arg_i == len(args)-1:
-                    request_body += arg_key.encode('utf-8') + b"=" + arg_value.encode('utf-8')
-                else:
-                    request_body += arg_key.encode('utf-8') + b"=" + arg_value.encode('utf-8') + b"&"
-            request_body += b"\r\n"
-        # if debug == 1:
-        #     print(request_body)
-        #     print(len(request_body))
-        request += b"Content-Length: " + str(len(request_body)).encode('utf-8') + b"\r\n\r\n"
-        request += request_body
+
+        if args != None:
+            request_body = urllib.parse.urlencode(args)
+        else:
+            request_body = ""
+
+        request += b"Content-Length: " + str(len(str(request_body))).encode('utf-8') + b"\r\n\r\n"
+        request += request_body.encode('utf-8')
         
-        # if debug == 1:
-        #     print(request)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             if parsed_url.port is None:
                 hostip = socket.gethostbyname(parsed_url.hostname)
@@ -148,12 +138,6 @@ class HTTPClient(object):
             sock.sendall(request)
             sock.shutdown(socket.SHUT_WR)
             result = self.recvall(sock)
-
-        # if debug == 1:
-        #     print("Header: ")
-        #     print(self.get_headers(result))
-        #     print("Body: ")
-        #     print(self.get_body(result))
 
         print(result)
 
